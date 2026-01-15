@@ -33,20 +33,34 @@ class AppThemes {
     // scaffoldBackgroundColor: Colors.black,
   );
 
-  // static ThemeData dark = ThemeData.dark().copyWith(
-  //   textTheme: GoogleFonts.poppinsTextTheme(
-  //     ThemeData.dark().textTheme,
-  //   ),
-  // );
-
   static ThemeData dark = ThemeData(
     brightness: Brightness.dark,
-    colorScheme: const ColorScheme.dark(
-      primary: Color.fromARGB(255, 206, 186, 186),
-      secondary: Colors.grey,
-      surface: Color.fromARGB(255, 23, 22, 22),
+    colorScheme: ColorScheme.dark(
+      primary: Colors.blue.shade400,
+      secondary: Colors.cyan.shade300,
+      surface: Colors.grey.shade900,
+      surfaceContainer: Colors.grey.shade800,
     ),
-    textTheme: GoogleFonts.poppinsTextTheme(),
-    // scaffoldBackgroundColor: Colors.black,
+    scaffoldBackgroundColor: Colors.grey.shade900,
+    textTheme: GoogleFonts.poppinsTextTheme(
+      ThemeData.dark().textTheme,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: const OutlineInputBorder(),
+      filled: true,
+      fillColor: Colors.grey.shade800,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    ),
   );
+
+  // static ThemeData dark = ThemeData(
+  //   brightness: Brightness.dark,
+  //   colorScheme: const ColorScheme.dark(
+  //     primary: Color.fromARGB(255, 206, 186, 186),
+  //     secondary: Colors.grey,
+  //     surface: Color.fromARGB(255, 23, 22, 22),
+  //   ),
+  //   textTheme: GoogleFonts.poppinsTextTheme(),
+  //   // scaffoldBackgroundColor: Colors.black,
+  // );
 }

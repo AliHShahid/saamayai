@@ -39,15 +39,7 @@ class SaamayApp extends StatelessWidget {
     return MaterialApp(
       title: 'Saamay',
       debugShowCheckedModeBanner: false,
-      theme: themeProvider.theme.copyWith(
-        // 👇 Global styles applied consistently to ALL themes
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        ),
-      ),
+      theme: themeProvider.theme,
       home: const _AuthGate(),
     );
   }

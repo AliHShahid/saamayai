@@ -10,6 +10,8 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -23,7 +25,7 @@ class SettingsPage extends StatelessWidget {
           const _SectionHeader(title: "Appearance"),
           Card(
             elevation: 0,
-            color: Colors.grey.shade50,
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
@@ -34,7 +36,8 @@ class SettingsPage extends StatelessWidget {
               trailing: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: themeProvider.themeName,
-                  icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey),
                   items: const [
                     DropdownMenuItem(value: "White", child: Text("Light")),
                     DropdownMenuItem(value: "Dark", child: Text("Dark")),
@@ -101,17 +104,21 @@ class SettingsPage extends StatelessWidget {
     String? subtitle,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
       elevation: 0,
-      color: Colors.grey.shade50,
+      color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(icon, color: Colors.grey.shade700),
+        leading: Icon(icon,
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: const Icon(Icons.arrow_forward_ios_rounded,
-            size: 16, color: Colors.grey),
+        trailing: Icon(Icons.arrow_forward_ios_rounded,
+            size: 16, color: isDark ? Colors.grey.shade600 : Colors.grey),
         onTap: onTap,
       ),
     );
@@ -124,12 +131,15 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
-          color: Colors.grey.shade600,
+          color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
           fontWeight: FontWeight.bold,
           fontSize: 13,
           letterSpacing: 1.2,
