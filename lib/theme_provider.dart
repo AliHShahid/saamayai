@@ -9,14 +9,11 @@ class ThemeProvider with ChangeNotifier {
   String get themeName => _themeName;
 
   void setTheme(String themeName) {
-    if (themeName == "Nature Green") {
-      _theme = AppThemes.natureGreen;
-    } else if (themeName == "Freezed Ice") {
-      _theme = AppThemes.freezedIce;
-    } else if (themeName == "Dark") {
+    if (themeName == "Dark") {
       _theme = AppThemes.dark;
-    } else if (themeName == "White") {
+    } else {
       _theme = AppThemes.whiteClassic;
+      themeName = "White"; // Ensure consistency
     }
     _themeName = themeName;
     notifyListeners();

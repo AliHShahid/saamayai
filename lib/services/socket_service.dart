@@ -1,41 +1,60 @@
-// import 'dart:async';
-// import 'dart:typed_data';
-// import 'package:web_socket_channel/web_socket_channel.dart';
-// import 'package:web_socket_channel/status.dart' as status;
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
+import 'stt_service.dart'; // To reuse APIConfig.baseUrl
 
-// class SocketService {
-//   WebSocketChannel? _channel;
-//   final String _url = "wss://4964d286f410.ngrok-free.app/ws/transcribe";
+class SocketService {
+  WebSocketChannel? _channel;
+  
+  // Stream for Transcriptions
+  final StreamController<Map<String, dynamic>> _responseStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  
+  Stream<Map<String, dynamic>> get responseStream => _responseStreamController.stream;
 
-//   final StreamController<String> _textStreamController =
-//       StreamController<String>.broadcast();
-//   Stream<String> get transcriptionStream => _textStreamController.stream;
+  /// Connect to WebSocket with Surah Number
+  void connect(int surahNumber) {
+    try {
+      // Create WS URL from HTTP Base URL
+      // Remove 'https://' and use 'wss://' (or 'ws://' if clean http)
+      String baseUrl = STTService.baseUrl;
+      String wsUrl = baseUrl.replaceFirst("https", "wss").replaceFirst("http", "ws");
+      String finalUrl = "$wsUrl/ws/transcribe/$surahNumber";
 
-//   void connect() {
-//     try {
-//       _channel = WebSocketChannel.connect(Uri.parse(_url));
+      print("🔌 Connecting to WS: $finalUrl");
 
-//       // Listen for messages from server
-//       _channel!.stream.listen(
-//         (message) {
-//           // Add the incoming text to our stream so the UI updates
-//           _textStreamController.add(message);
-//         },
-//         onError: (error) => print("Socket Error: $error"),
-//         onDone: () => print("Socket Closed"),
-//       );
-//     } catch (e) {
-//       print("Connection failed: $e");
-//     }
-//   }
+      _channel = WebSocketChannel.connect(Uri.parse(finalUrl));
 
-//   void sendAudioChunk(Uint8List data) {
-//     if (_channel != null) {
-//       _channel!.sink.add(data);
-//     }
-//   }
+      _channel!.stream.listen(
+        (message) {
+          try {
+            print("📩 WS Received: $message");
+            final data = jsonDecode(message);
+            _responseStreamController.add(data);
+          } catch (e) {
+            print("❌ WS Parse Error: $e");
+          }
+        },
+        onError: (error) => print("❌ WS Error: $error"),
+        onDone: () => print("🔌 WS Closed"),
+      );
+    } catch (e) {
+      print("❌ Connection failed: $e");
+    }
+  }
 
-//   void disconnect() {
-//     _channel?.sink.close(status.goingAway);
-//   }
-// }
+  void sendAudioChunk(Uint8List data) {
+    if (_channel != null) {
+      _channel!.sink.add(data);
+    }
+  }
+
+  void disconnect() {
+    if (_channel != null) {
+      _channel!.sink.close(status.goingAway);
+      _channel = null;
+    }
+  }
+}

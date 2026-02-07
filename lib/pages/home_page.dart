@@ -1,166 +1,174 @@
-// import 'package:flutter/material.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
-// import '../widgets/nav_drawer.dart';
-// import '../widgets/recording_widget.dart';
-
-// class HomePage extends StatelessWidget {
-//   const HomePage({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final user = Supabase.instance.client.auth.currentUser;
-
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('Saamay'),
-//         leading: Builder(
-//           builder: (context) => IconButton(
-//             icon: const Icon(Icons.drag_handle_sharp),
-//             onPressed: () => Scaffold.of(context).openDrawer(),
-//           ),
-//         ),
-//       ),
-//       drawer: const NavDrawer(),
-//       body: SingleChildScrollView(
-//         padding: const EdgeInsets.all(16),
-//         child: Column(
-//           children: [
-//             Text(
-//               'Welcome',
-//               // 'Welcome${user?.email != null ? ', ${user!.email}' : ''}!',
-//               style: Theme.of(context).textTheme.titleMedium,
-//               textAlign: TextAlign.center,
-//             ),
-//             const SizedBox(height: 24),
-//             const RecordingWidget(),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/nav_drawer.dart';
-import '../services/quran_service.dart';
-import 'surah_page.dart';
+import '../widgets/surah_picker.dart';
+import '../widgets/surah_view.dart';
+import '../services/preference_service.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
+  State<HomePage> createState() => _HomePageState();
+}
 
+class _HomePageState extends State<HomePage> {
+  final PreferenceService _preferenceService = PreferenceService();
+  
+  bool _isLoading = true;
+  int _currentSurahNumber = 1;
+  String _currentSurahName = "Al-Fatiha";
+  int _currentTotalVerses = 7;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final lastSurah = await _preferenceService.getLastSurah();
+    if (mounted) {
+      setState(() {
+        _currentSurahNumber = lastSurah['number'];
+        _currentSurahName = lastSurah['name'];
+        _currentTotalVerses = lastSurah['verses'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _onSurahSelected(int number, String name, int verses) {
+    setState(() {
+      _currentSurahNumber = number;
+      _currentSurahName = name;
+      _currentTotalVerses = verses;
+    });
+    _preferenceService.saveLastSurah(number, name, verses);
+  }
+
+  void _showSurahPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SurahPicker(
+        selectedSurahNumber: _currentSurahNumber,
+        onSurahSelected: _onSurahSelected,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFDF5),
       appBar: AppBar(
-        title: const Text("Saamay - Select Surah"),
+        title: Text(
+          "Saamay",
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
+        backgroundColor: const Color(0xFFFFFDF5),
+        elevation: 0,
         actions: [
-          // Optional: Keep a small profile icon or similar
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search later
-            },
-          ),
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () => Navigator.pushNamed(context, '/progress'),
+          )
         ],
       ),
       drawer: const NavDrawer(),
-      body: Column(
-        children: [
-          // Welcome Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: Colors.green.shade50,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
-                Text(
-                  "Welcome, ${user?.email?.split('@')[0] ?? 'Reciter'}",
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
+                // Premium Surah Info Card
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: GestureDetector(
+                    onTap: _showSurahPicker,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1B4332), Color(0xFF2D6A4F)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1B4332).withOpacity(0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              "$_currentSurahNumber",
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Current Surah",
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  _currentSurahName,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.swap_vert_circle_outlined,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  "Select a Surah to practice recitation.",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                
+                // Main Reading View
+                Expanded(
+                  child: SurahView(
+                    surahNumber: _currentSurahNumber,
+                    surahName: _currentSurahName,
+                    totalVerses: _currentTotalVerses,
+                  ),
                 ),
               ],
             ),
-          ),
-
-          // Surah List
-          Expanded(
-            child: ListView.separated(
-              itemCount: 114,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final surahNumber = index + 1;
-                final surahName = QuranService.surahNames[index];
-                final verseCount = QuranService.surahVerseCounts[index];
-
-                // Alternating background color logic
-                final bool isEven = index % 2 == 0;
-                final backgroundColor =
-                    isEven ? Colors.white : Colors.grey.shade50;
-
-                return Container(
-                  color: backgroundColor,
-                  child: ListTile(
-                    visualDensity: VisualDensity.compact,
-                    dense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.green, width: 1.5),
-                      ),
-                      child: Text(
-                        "$surahNumber",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      surahName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 16),
-                    ),
-                    subtitle: Text(
-                      "$verseCount Verses",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded,
-                        size: 14, color: Colors.grey),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SurahPage(
-                            surahNumber: surahNumber,
-                            surahName: surahName,
-                            totalVerses: verseCount,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

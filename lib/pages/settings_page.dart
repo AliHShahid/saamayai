@@ -41,9 +41,6 @@ class SettingsPage extends StatelessWidget {
                   items: const [
                     DropdownMenuItem(value: "White", child: Text("Light")),
                     DropdownMenuItem(value: "Dark", child: Text("Dark")),
-                    DropdownMenuItem(
-                        value: "Nature Green", child: Text("Nature")),
-                    DropdownMenuItem(value: "Freezed Ice", child: Text("Ice")),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -86,10 +83,6 @@ class SettingsPage extends StatelessWidget {
 
   String _getThemeName(String key) {
     switch (key) {
-      case "Nature Green":
-        return "Nature Green 🌿";
-      case "Freezed Ice":
-        return "Freezed Ice ❄️";
       case "Dark":
         return "Dark Mode 🌙";
       default:

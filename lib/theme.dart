@@ -2,25 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppThemes {
-  static ThemeData natureGreen = ThemeData(
-    brightness: Brightness.light,
-    colorScheme: ColorScheme.light(
-      primary: Colors.green.shade700,
-      secondary: Colors.greenAccent,
-    ),
-    textTheme: GoogleFonts.poppinsTextTheme(),
-    scaffoldBackgroundColor: Colors.green.shade50,
-  );
-
-  static ThemeData freezedIce = ThemeData(
-    brightness: Brightness.light,
-    colorScheme: ColorScheme.light(
-      primary: Colors.blue.shade300,
-      secondary: Colors.cyanAccent,
-    ),
-    textTheme: GoogleFonts.poppinsTextTheme(),
-    scaffoldBackgroundColor: Colors.blue.shade50,
-  );
 
   static ThemeData whiteClassic = ThemeData(
     brightness: Brightness.light,
@@ -38,29 +19,21 @@ class AppThemes {
     colorScheme: ColorScheme.dark(
       primary: Colors.blue.shade400,
       secondary: Colors.cyan.shade300,
-      surface: Colors.grey.shade900,
-      surfaceContainer: Colors.grey.shade800,
+      surface: const Color(0xFF1E1E1E), // Darker surface for cards
+      surfaceContainer: const Color(0xFF2C2C2C), // Slightly lighter for containers
+      onSurface: Colors.white,
     ),
-    scaffoldBackgroundColor: Colors.grey.shade900,
+    scaffoldBackgroundColor: const Color(0xFF121212), // True dark mode background
+    cardColor: const Color(0xFF1E1E1E), // Explicit card color
+    dividerColor: Colors.grey.shade700,
     textTheme: GoogleFonts.poppinsTextTheme(
       ThemeData.dark().textTheme,
     ),
     inputDecorationTheme: InputDecorationTheme(
       border: const OutlineInputBorder(),
       filled: true,
-      fillColor: Colors.grey.shade800,
+      fillColor: const Color(0xFF2C2C2C),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     ),
   );
-
-  // static ThemeData dark = ThemeData(
-  //   brightness: Brightness.dark,
-  //   colorScheme: const ColorScheme.dark(
-  //     primary: Color.fromARGB(255, 206, 186, 186),
-  //     secondary: Colors.grey,
-  //     surface: Color.fromARGB(255, 23, 22, 22),
-  //   ),
-  //   textTheme: GoogleFonts.poppinsTextTheme(),
-  //   // scaffoldBackgroundColor: Colors.black,
-  // );
 }

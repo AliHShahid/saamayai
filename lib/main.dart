@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme_provider.dart';
 import 'pages/auth_page.dart';
 import 'pages/home_page.dart';
+import 'pages/update_password_page.dart';
 import 'package:provider/provider.dart';
 
 const supabaseUrl = 'https://advrtbxulkdblpxuflbk.supabase.co';
@@ -63,6 +64,11 @@ class _AuthGateState extends State<_AuthGate> {
     _session = auth.currentSession;
     _sub = auth.onAuthStateChange;
     _sub.listen((event) {
+      if (event.event == AuthChangeEvent.passwordRecovery) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const UpdatePasswordPage()),
+        );
+      }
       setState(() => _session = event.session);
     });
   }
