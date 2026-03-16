@@ -1,19 +1,25 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-// import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 import '../services/quran_service.dart';
 import '../services/preference_service.dart';
-import '../widgets/recording_widget.dart';
+import '../services/surah_pagination.dart';
+import '../services/surah_pagination.dart';
 
 class SurahView extends StatefulWidget {
   final int surahNumber;
   final String surahName;
   final int totalVerses;
+  final VoidCallback? onSurahCompleted;
+  final Stream<Map<String, dynamic>>? analysisStream;
 
   const SurahView({
     super.key,
     required this.surahNumber,
     required this.surahName,
     required this.totalVerses,
+    this.onSurahCompleted,
+    this.analysisStream,
   });
 
   @override
@@ -23,17 +29,45 @@ class SurahView extends StatefulWidget {
 class _SurahViewState extends State<SurahView> {
   final QuranService _quranService = QuranService();
   final PreferenceService _preferenceService = PreferenceService();
+  
+  // Pagination
+  late PageController _pageController;
+  List<List<int>> _pages = [];
+  int _currentPage = 0;
+
   bool _isLoading = true;
 
   // Store analysis results keyed by Ayah Number
-  // Map<AyahNumber, AnalysisObject>
   final Map<int, Map<String, dynamic>> _verseResults = {};
   double _currentAccuracy = 0.0;
+  
+  // Stream subscription
+  StreamSubscription? _analysisSubscription;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _loadData();
+    _subscribeToAnalysis();
+  }
+  
+  void _subscribeToAnalysis() {
+    _analysisSubscription = widget.analysisStream?.listen((data) {
+      _handleAnalysisComplete(data);
+    });
+  }
+
+  void _generatePages() {
+    if (!mounted) return;
+    setState(() {
+      _pages = SurahPagination.paginateSurah(
+        widget.surahNumber,
+        widget.totalVerses, 
+        _quranService,
+        wordsPerPage: 52, // Target words per page
+      );
+    });
   }
 
   @override
@@ -41,21 +75,48 @@ class _SurahViewState extends State<SurahView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.surahNumber != widget.surahNumber) {
       _verseResults.clear();
+      _pageController.jumpToPage(0); // Reset to first page
       _loadData();
     }
+    // Re-subscribe if stream changes (though likely same stream controller from parent)
+    if (oldWidget.analysisStream != widget.analysisStream) {
+       _analysisSubscription?.cancel();
+       _subscribeToAnalysis();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _analysisSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     await _quranService.loadQuranData();
-    if (mounted) setState(() => _isLoading = false);
+    
+    // Generate pages NOW that data is loaded
+    _generatePages();
+
+    // Load last saved progress
+    final lastAyah = await _preferenceService.getSurahScrollPosition(widget.surahNumber);
+    if (mounted) {
+      setState(() => _isLoading = false);
+      // Slight delay to ensure PageView is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoScrollToAyah(lastAyah);
+      });
+    }
   }
 
   /// Called repeatedly as WebSocket sends updates
   void _handleAnalysisComplete(Map<String, dynamic> result) {
-    // result format: {transcription: "...", analysis: {surah: X, ayah: Y, diff: [...]}, is_final: bool}
-    print("DEBUG: _handleAnalysisComplete received: $result");
-    
+    if (result.containsKey('status') && result['status'] == 'stopped') {
+      _handleRecordingStopped();
+      return;
+    }
+
     if (result.containsKey('analysis') && result['analysis'] != null) {
       final analysis = result['analysis'];
       if (analysis is Map && analysis.containsKey('ayah')) {
@@ -66,7 +127,36 @@ class _SurahViewState extends State<SurahView> {
           _verseResults[ayahNum] = Map<String, dynamic>.from(analysis);
           _currentAccuracy = acc;
         });
+
+        _autoScrollToAyah(ayahNum);
+
+        // Check for Surah Completion
+        if (ayahNum == widget.totalVerses && acc > 85.0) {
+          print("🎉 Surah Completed! Triggering auto-next...");
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            widget.onSurahCompleted?.call();
+          });
+        }
       }
+    }
+  }
+
+  void _autoScrollToAyah(int ayahNum) {
+    // Find which page this ayah belongs to
+    int targetPage = -1;
+    for (int i = 0; i < _pages.length; i++) {
+      if (_pages[i].contains(ayahNum)) {
+        targetPage = i;
+        break;
+      }
+    }
+
+    if (targetPage != -1 && targetPage != _currentPage) {
+      _pageController.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -78,7 +168,6 @@ class _SurahViewState extends State<SurahView> {
         widget.surahName,
         _currentAccuracy,
       ).then((_) {
-        // Optional: Show a subtle snackbar or toast
         if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -102,7 +191,7 @@ class _SurahViewState extends State<SurahView> {
 
     return Column(
       children: [
-        // --- 1. MAIN CONTENT AREA (Mushaf Flow) ---
+        // --- 1. MAIN CONTENT AREA (PageView) ---
         Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -120,35 +209,57 @@ class _SurahViewState extends State<SurahView> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-                child: _buildQuranFlow(),
+              child: PageView.builder(
+                controller: _pageController,
+                reverse: true, // Arabic flows right-to-left
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                  // Save progress (first ayah of the page)
+                  if (_pages.isNotEmpty && index < _pages.length) {
+                    final firstAyah = _pages[index].first;
+                    _preferenceService.saveSurahScrollPosition(widget.surahNumber, firstAyah);
+                  }
+                },
+                itemCount: _pages.length,
+                itemBuilder: (context, index) {
+                  return SingleChildScrollView(
+                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+                     child: _buildPageContent(index),
+                  );
+                },
               ),
             ),
           ),
         ),
 
-        // --- 2. RECORDER WIDGET + STATS ---
+        // --- 2. PAGE INDICATOR ---
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            "Page ${_currentPage + 1} of ${_pages.length}",
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white54 
+                  : Colors.black54,
+              fontSize: 12,
+            ),
+          ),
+        ),
+
+        // --- 3. STATS (RecordingWidget REMOVED) ---
         Container(
           decoration: const BoxDecoration(
             color: Colors.transparent,
-            // color: Colors.white,
-            // borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            // boxShadow: [
-              // BoxShadow(
-                // color: Colors.black12,
-                // blurRadius: 10,
-                // offset: const Offset(0, -4),
-              // )
-            // ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 12),
               if (_currentAccuracy > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: _currentAccuracy > 80 ? Colors.green.shade50 : Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(12),
@@ -162,11 +273,7 @@ class _SurahViewState extends State<SurahView> {
                     ),
                   ),
                 ),
-              RecordingWidget(
-                surahNumber: widget.surahNumber,
-                onAnalysisComplete: _handleAnalysisComplete,
-                onRecordingStopped: _handleRecordingStopped,
-              ),
+              // RecordingWidget REMOVED from here. It is now lifted to HomePage.
             ],
           ),
         ),
@@ -174,74 +281,71 @@ class _SurahViewState extends State<SurahView> {
     );
   }
 
-  Widget _buildQuranFlow() {
+  Widget _buildPageContent(int pageIndex) {
+    if (pageIndex < 0 || pageIndex >= _pages.length) return const SizedBox();
+
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
-    // Adapt colors
-    final borderColor = isDark ? Colors.grey.shade700 : const Color(0xFFD4AF37);
-    final textColor = theme.colorScheme.onSurface;
-    final ornamentColor = isDark ? Colors.grey.shade800 : const Color(0xFFF2EAD3);
-    final ornamentBorder = isDark ? Colors.grey.shade600 : const Color(0xFFD4AF37);
-    final headerTextColor = isDark ? Colors.white : const Color(0xFF1B4332);
+    final isDark = false; // Force light
+    final List<int> ayahsOnPage = _pages[pageIndex];
 
     List<InlineSpan> allSpans = [];
 
-    // 1. Ornate Surah Header (Native)
-    allSpans.add(
-      WidgetSpan(
-        child: _buildNativeHeader(isDark),
-      ),
-    );
-
-    // 2. Bismillah - CENTERED using WidgetSpan
-    if (widget.surahNumber != 9) {
+    // 1. Ornate Surah Header (Only on Page 0)
+    if (pageIndex == 0) {
       allSpans.add(
         WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'IndoPakFont',
-                fontSize: 24,
-                color: textColor,
-                height: 1.5,
+          child: _buildNativeHeader(isDark),
+        ),
+      );
+
+      // 2. Bismillah (Only on Page 0, and not for Surah 9)
+      if (widget.surahNumber != 9) {
+        allSpans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                textAlign: TextAlign.center,
+                style: AppThemes.arabicTextStyle.copyWith(
+                  fontSize: 24,
+                  color: Colors.black, // Force black
+                  height: 1.5,
+                ),
               ),
             ),
           ),
-        ),
-      );
-      allSpans.add(const TextSpan(text: "\n"));
+        );
+        allSpans.add(const TextSpan(text: "\n"));
+      }
     }
 
-    // 3. Ayahs
-    for (int i = 1; i <= widget.totalVerses; i++) {
-      if (_verseResults.containsKey(i)) {
-        allSpans.addAll(_getAnalyzedSpans(_verseResults[i]!, i, isDark));
+    // 3. Ayahs on this page
+    for (int ayahNum in ayahsOnPage) {
+      if (_verseResults.containsKey(ayahNum)) {
+        allSpans.addAll(_getAnalyzedSpans(_verseResults[ayahNum]!, ayahNum, isDark));
       } else {
-        allSpans.addAll(_getNormalSpans(i, isDark));
+        allSpans.addAll(_getNormalSpans(ayahNum, isDark));
       }
     }
 
     return RichText(
-      textAlign: TextAlign.center, // Matched SurahPage center alignment
+      textAlign: TextAlign.center,
       textDirection: TextDirection.rtl,
       text: TextSpan(children: allSpans),
     );
   }
 
   List<InlineSpan> _getNormalSpans(int number, bool isDark) {
-    final textColor = isDark ? Colors.white : Colors.black87;
+    // final textColor = isDark ? Colors.white : Colors.black87;
+    final textColor = Colors.black87;
     final text = _quranService.getAyahText(widget.surahNumber, number);
     return [
       TextSpan(
         text: "$text ",
-        style: TextStyle(
-          fontFamily: 'IndoPakFont',
+        style: AppThemes.arabicTextStyle.copyWith(
           fontSize: 24,
           color: textColor,
           height: 1.8,
@@ -255,7 +359,7 @@ class _SurahViewState extends State<SurahView> {
   List<InlineSpan> _getAnalyzedSpans(Map<String, dynamic> analysis, int number, bool isDark) {
     final diffs = List<Map<String, dynamic>>.from(analysis['diff']);
     List<InlineSpan> spans = [];
-    final baseColor = isDark ? Colors.white : Colors.black;
+    final baseColor = Colors.black;
 
     for (var item in diffs) {
       final word = item['word'];
@@ -271,7 +375,7 @@ class _SurahViewState extends State<SurahView> {
         color = const Color(0xFFB71C1C); // Lighter red
         weight = FontWeight.bold;
       } else if (status == 'missing') {
-        color = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+        color = Colors.grey.shade400; // Light theme missing color
         decoration = TextDecoration.lineThrough;
       } else if (status == 'extra') {
         color = Colors.orange.shade400;
@@ -280,8 +384,7 @@ class _SurahViewState extends State<SurahView> {
       spans.add(
         TextSpan(
           text: "$word ",
-          style: TextStyle(
-            fontFamily: 'IndoPakFont',
+          style: AppThemes.arabicTextStyle.copyWith(
             fontSize: 26, // Larger for current reciting ayah
             color: color,
             fontWeight: weight,
@@ -299,8 +402,8 @@ class _SurahViewState extends State<SurahView> {
   }
 
   InlineSpan _buildAyahNumberSpan(int number, bool isDark) {
-    final ringColor = isDark ? Colors.white70 : const Color(0xFFD4AF37);
-    final textColor = isDark ? Colors.white70 : const Color(0xFFD4AF37);
+    final ringColor = const Color(0xFFD4AF37);
+    final textColor = const Color(0xFFD4AF37);
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
@@ -310,12 +413,11 @@ class _SurahViewState extends State<SurahView> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: ringColor, width: 1.5),
-          color: isDark ? Colors.grey.shade800 : Colors.transparent, // transparent to show bg
+          color: Colors.transparent,
         ),
         child: Text(
           "$number",
-          style: TextStyle(
-            fontFamily: 'IndoPakFont',
+          style: AppThemes.arabicTextStyle.copyWith(
             fontSize: 12,
             fontWeight: FontWeight.bold,
             color: textColor,
@@ -330,15 +432,11 @@ class _SurahViewState extends State<SurahView> {
     final lightOuterBorder = Colors.black;
     final lightInnerBg = const Color(0xFFF9F5EC);
     final lightText = Colors.black87;
-    // Dark Mode Colors
-    final darkOuterBorder = Colors.grey.shade600;
-    final darkInnerBg = const Color(0xFF2C2C2C);
-    final darkText = Colors.white;
 
-    final borderColor = isDark ? darkOuterBorder : lightOuterBorder;
-    final innerBgColor = isDark ? darkInnerBg : lightInnerBg;
-    final textColor = isDark ? darkText : lightText;
-    final starColor = isDark ? Colors.grey.shade400 : Colors.black;
+    final borderColor = lightOuterBorder;
+    final innerBgColor = lightInnerBg;
+    final textColor = lightText;
+    final starColor = Colors.black;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -363,8 +461,7 @@ class _SurahViewState extends State<SurahView> {
                 child: Center(
                   child: Text(
                     "سُورَةُ ${widget.surahName}",
-                    style: TextStyle(
-                      fontFamily: 'IndoPakFont',
+                    style: AppThemes.arabicTextStyle.copyWith(
                       fontSize: 26,
                       color: textColor,
                       height: 1.3,

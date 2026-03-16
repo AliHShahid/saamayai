@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/surah_picker.dart';
 import '../widgets/surah_view.dart';
+import '../widgets/recording_widget.dart'; // Import RecordingWidget
 import '../services/preference_service.dart';
+import '../services/quran_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,25 +18,47 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final PreferenceService _preferenceService = PreferenceService();
   
+  // Page Controller for Surahs
+  late PageController _pageController;
+
   bool _isLoading = true;
   int _currentSurahNumber = 1;
   String _currentSurahName = "Al-Fatiha";
-  int _currentTotalVerses = 7;
+  
+  // Stream controller to broadcast analysis results to SurahView
+  final StreamController<Map<String, dynamic>> _analysisController = StreamController<Map<String, dynamic>>.broadcast();
 
   @override
   void initState() {
     super.initState();
+    // Initialize with a dummy initial page, will be updated in _loadState
+    _pageController = PageController(initialPage: 0);
     _loadState();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _analysisController.close();
+    super.dispose();
   }
 
   Future<void> _loadState() async {
     final lastSurah = await _preferenceService.getLastSurah();
     if (mounted) {
+      final surahNum = lastSurah['number'];
       setState(() {
-        _currentSurahNumber = lastSurah['number'];
+        _currentSurahNumber = surahNum;
         _currentSurahName = lastSurah['name'];
-        _currentTotalVerses = lastSurah['verses'];
         _isLoading = false;
+      });
+      
+      // Update PageController to start at the correct Surah
+      // Provide a slight delay to ensure the PageView is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(surahNum - 1);
+        }
       });
     }
   }
@@ -43,9 +67,41 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _currentSurahNumber = number;
       _currentSurahName = name;
-      _currentTotalVerses = verses;
     });
     _preferenceService.saveLastSurah(number, name, verses);
+    
+    // Jump PageView to the selected Surah
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(number - 1);
+    }
+  }
+
+  void _onSurahSwipeChanged(int index) {
+    // Index is 0-based, Surah Number is 1-based
+    final newSurahNum = index + 1;
+    if (newSurahNum == _currentSurahNumber) return;
+
+    if (newSurahNum <= QuranService.surahNames.length) {
+      final name = QuranService.surahNames[newSurahNum - 1];
+      
+      final verseCount = QuranService.surahVerseCounts[newSurahNum - 1];
+
+      setState(() {
+        _currentSurahNumber = newSurahNum;
+        _currentSurahName = name;
+      });
+      
+      _preferenceService.saveLastSurah(newSurahNum, name, verseCount);
+    }
+  }
+  
+  void _navigateToNextSurah() {
+    if (_currentSurahNumber < 114 && _pageController.hasClients) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _showSurahPicker() {
@@ -159,12 +215,51 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 
-                // Main Reading View
+                // Main Reading View (PageView)
                 Expanded(
-                  child: SurahView(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    reverse: true, // Enable RTL navigation (Swipe Right -> Next Surah)
+                    itemCount: 114,
+                    onPageChanged: _onSurahSwipeChanged,
+                    itemBuilder: (context, index) {
+                      final surahNum = index + 1;
+                      
+                      String surahName = "";
+                      int totalVerses = 0;
+                      
+                      if (index < QuranService.surahNames.length) {
+                         surahName = QuranService.surahNames[index];
+                      }
+                      if (index < QuranService.surahVerseCounts.length) {
+                         totalVerses = QuranService.surahVerseCounts[index];
+                      }
+
+                      return SurahView(
+                        surahNumber: surahNum,
+                        surahName: surahName,
+                        totalVerses: totalVerses,
+                        onSurahCompleted: _navigateToNextSurah,
+                        analysisStream: _analysisController.stream, // Pass the stream
+                      );
+                    },
+                  ),
+                ),
+                
+                // Hoisted Recording Widget
+                Container(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  alignment: Alignment.center,
+                  child: RecordingWidget(
                     surahNumber: _currentSurahNumber,
-                    surahName: _currentSurahName,
-                    totalVerses: _currentTotalVerses,
+                    onAnalysisComplete: (data) => _analysisController.add(data),
+                    onRecordingStopped: () {
+                       // Broadcast a stop event so SurahView can save?
+                       // Or we just rely on SurahView to save when IT thinks it should?
+                       // Currently SurahView saves in `_handleRecordingStopped` which was called by RecordingWidget.
+                       // We can send a special event:
+                       _analysisController.add({'status': 'stopped'});
+                    },
                   ),
                 ),
               ],

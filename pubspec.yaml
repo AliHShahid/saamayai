@@ -45,6 +45,7 @@ dependencies:
   http_parser: ^4.0.2
   web_socket_channel: ^3.0.0
   shared_preferences: ^2.5.4
+  share_plus: ^12.0.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -87,8 +88,9 @@ flutter:
     - assets/icon/app_icon.png
     - assets/Start.png
     - assets/default_avatar.png
-    - assets/icon/Menu Button.png
-    - assets/json/all_ayat.json  
+    # - assets/icon/Menu Button.png
+    - assets/json/all_ayat.json
+    - assets/json/quran.json  
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -105,14 +107,7 @@ flutter:
     - family: IndoPakFont
       fonts:
         - asset: assets/fonts/KFGQPC Uthmanic Script HAFS Regular.otf
-        # - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
+
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 

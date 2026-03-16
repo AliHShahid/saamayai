@@ -36,4 +36,9 @@ class AppThemes {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     ),
   );
+  static const TextStyle arabicTextStyle = TextStyle(
+    fontFamily: 'IndoPakFont',
+    fontSize: 24, // Standard size, can be overridden
+    height: 1.5,
+  );
 }

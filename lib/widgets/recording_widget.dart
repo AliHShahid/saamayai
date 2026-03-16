@@ -54,6 +54,23 @@ class _RecordingWidgetState extends State<RecordingWidget> with SingleTickerProv
   }
 
   @override
+  void didUpdateWidget(RecordingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.surahNumber != oldWidget.surahNumber && isRecording) {
+      // Reconnect to new Surah socket
+      // Note: This interrupts the stream briefly.
+      // Ideally we would have a seamless way, but for now reconnect is safest.
+      _reconnectSocket();
+    }
+  }
+
+  Future<void> _reconnectSocket() async {
+    _socketService.disconnect();
+    // Small delay to ensure disconnect
+    await Future.delayed(const Duration(milliseconds: 100));
+    _socketService.connect(widget.surahNumber);
+  }
+  @override
   void dispose() {
     _animationController.dispose();
     _socketSubscription?.cancel();
@@ -75,13 +92,10 @@ class _RecordingWidgetState extends State<RecordingWidget> with SingleTickerProv
     final status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) return;
 
-    if (!isModelLoaded) {
-      setState(() => isWarmingUp = true);
-      await STTService.warmup();
-      isModelLoaded = true;
-      if (mounted) setState(() => isWarmingUp = false);
-    }
-
+    // We no longer block here. 
+    // Warmup is triggered in SurahPage. Even if it's not done, 
+    // we let the user record. The first chunk might be slightly slower,
+    // but the UI interaction is instant.
     await startRecording();
   }
 

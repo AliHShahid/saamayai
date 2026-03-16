@@ -9,13 +9,9 @@ class ThemeProvider with ChangeNotifier {
   String get themeName => _themeName;
 
   void setTheme(String themeName) {
-    if (themeName == "Dark") {
-      _theme = AppThemes.dark;
-    } else {
-      _theme = AppThemes.whiteClassic;
-      themeName = "White"; // Ensure consistency
-    }
-    _themeName = themeName;
+    // Enforce light theme as per user request "all pages... like light theme of login"
+    _theme = AppThemes.whiteClassic;
+    _themeName = "White";
     notifyListeners();
   }
 }

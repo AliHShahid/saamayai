@@ -89,8 +89,10 @@ class SurahSelector extends StatelessWidget {
                   Text(
                     surahName,
                     style: TextStyle(
+                      fontFamily: 'IndoPakFont', 
                       color: isSelected ? Colors.white : Colors.black87,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 18,
                     ),
                   ),
                 ],

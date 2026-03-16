@@ -6,6 +6,7 @@ import 'pages/auth_page.dart';
 import 'pages/home_page.dart';
 import 'pages/update_password_page.dart';
 import 'package:provider/provider.dart';
+import 'services/stt_service.dart';
 
 const supabaseUrl = 'https://advrtbxulkdblpxuflbk.supabase.co';
 const supabaseAnonKey =
@@ -41,19 +42,108 @@ class SaamayApp extends StatelessWidget {
       title: 'Saamay',
       debugShowCheckedModeBanner: false,
       theme: themeProvider.theme,
-      home: const _AuthGate(),
+      // Start with Splash Screen for ALL users (Logged in or not)
+      home: const SplashScreen(),
     );
   }
 }
 
-class _AuthGate extends StatefulWidget {
-  const _AuthGate();
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<_AuthGate> createState() => _AuthGateState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _AuthGateState extends State<_AuthGate> {
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _startWarmupSequence();
+  }
+
+  Future<void> _startWarmupSequence() async {
+    // Wait for at least 2 seconds (for branding/animation) 
+    // AND for the backend warmup to complete.
+    final minWait = Future.delayed(const Duration(seconds: 2));
+    final backendWarmup = _triggerWarmup();
+
+    await Future.wait([minWait, backendWarmup]);
+
+    if (mounted) {
+      // Navigate to AuthGate to decide where to go (Home vs Login)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+      );
+    }
+  }
+
+  Future<void> _triggerWarmup() async {
+    try {
+      debugPrint("🔥 Triggering Backend Warmup...");
+      await STTService.warmup();
+      debugPrint("✅ Backend Warmup Complete");
+    } catch (e) {
+      debugPrint("❌ Warmup Failed (ignoring): $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                'Memorize and recite\nQuran easily',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const Spacer(),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Image.asset(
+                    'assets/Start.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Optional loading indicator
+              const SizedBox(
+                width: 24, 
+                height: 24, 
+                child: CircularProgressIndicator(strokeWidth: 2)
+              ),
+              const SizedBox(height: 16),
+              Text('Saamay',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700, color: primary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Decides if user is logged in or not
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
   Session? _session;
   late final Stream<AuthState> _sub;
 
@@ -62,9 +152,13 @@ class _AuthGateState extends State<_AuthGate> {
     super.initState();
     final auth = Supabase.instance.client.auth;
     _session = auth.currentSession;
+    debugPrint("Initial Session: ${_session?.user.email}");
     _sub = auth.onAuthStateChange;
     _sub.listen((event) {
+      debugPrint("Auth Event: ${event.event} | Session: ${event.session?.user.email}");
+      
       if (event.event == AuthChangeEvent.passwordRecovery) {
+        debugPrint("Navigate to UpdatePasswordPage");
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const UpdatePasswordPage()),
         );
@@ -75,9 +169,10 @@ class _AuthGateState extends State<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    // Unauthenticated → Welcome + AuthTabs; Authenticated → Home
+    // Unauthenticated → AuthPage; Authenticated → Home
+    // Splash screen is handled before this widget.
     if (_session == null) {
-      return const WelcomeScreen();
+      return const AuthPage();
     }
     return const HomePage();
   }
@@ -94,15 +189,46 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
+    _startWarmupSequence();
+  }
 
-    // Wait 5 seconds, then go to AuthPage
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthPage()),
-        );
+  Future<void> _startWarmupSequence() async {
+    // Wait for at least 2 seconds (for branding/animation) 
+    // AND for the backend warmup to complete.
+    // This ensures the model is hot when the user reaches the main app.
+    final minWait = Future.delayed(const Duration(seconds: 2));
+    final backendWarmup = _triggerWarmup();
+
+    await Future.wait([minWait, backendWarmup]);
+
+    if (mounted) {
+      if (Supabase.instance.client.auth.currentSession != null) {
+          // If already logged in, go strictly to Home
+          // We can't use 'pushReplacement' on '_AuthGate' directly easily from here 
+          // because WelcomeScreen is returned BY AuthGate.
+          // Actually, AuthGate logic below handles the routing. 
+          // We just need to signal we are done.
+          // But wait, WelcomeScreen is ONLY shown if _session == null.
+          // So we always go to AuthPage.
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AuthPage()),
+          );
+      } else {
+         Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AuthPage()),
+          );
       }
-    });
+    }
+  }
+
+  Future<void> _triggerWarmup() async {
+    try {
+      debugPrint("🔥 Triggering Backend Warmup...");
+      await STTService.warmup();
+      debugPrint("✅ Backend Warmup Complete");
+    } catch (e) {
+      debugPrint("❌ Warmup Failed (ignoring): $e");
+    }
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 import '../services/quran_service.dart';
 import '../widgets/recording_widget.dart';
 
@@ -30,6 +31,11 @@ class _SurahPageState extends State<SurahPage> {
   void initState() {
     super.initState();
     _loadData();
+    // Fire-and-forget warmup to prepare backend while user is viewing the page
+    // This reduces the chance of "Cold Start" delay on the first recording.
+    _quranService.loadQuranData().then((_) {}); 
+    // We already call loadQuranData in _loadData, so we just want STT warmup:
+    STTService.warmup(); 
   }
 
   Future<void> _loadData() async {
@@ -73,13 +79,14 @@ class _SurahPageState extends State<SurahPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // Force light theme usage as per request
+    final isDark = false; 
 
-    // Colors that adapt to theme
+    // Colors that adapt to theme (forcing light)
     final bgColor = theme.scaffoldBackgroundColor;
-    final contentBgColor = isDark ? theme.cardColor : Colors.white;
-    final borderColor = isDark ? Colors.grey.shade700 : Colors.black87;
-    final shadowColor = isDark ? Colors.black.withOpacity(0.5) : Colors.black.withOpacity(0.1);
+    final contentBgColor = Colors.white;
+    final borderColor = Colors.black87;
+    final shadowColor = Colors.black.withOpacity(0.1);
     final textColor = theme.colorScheme.onSurface;
 
     return Scaffold(
@@ -146,9 +153,6 @@ class _SurahPageState extends State<SurahPage> {
   Widget _buildQuranFlow(bool isDark) {
     List<InlineSpan> allSpans = [];
 
-    final borderColor = isDark ? Colors.grey.shade700 : Colors.black87;
-    final textColor = isDark ? Colors.white : Colors.black;
-
     // 1. Ornate Surah Header (Native)
     allSpans.add(
       WidgetSpan(
@@ -167,11 +171,9 @@ class _SurahPageState extends State<SurahPage> {
             child: Text(
               "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'IndoPakFont',
+              style: AppThemes.arabicTextStyle.copyWith(
                 fontSize: 24,
-                color: textColor,
-                height: 1.5,
+                color: Colors.black,
               ),
             ),
           ),
@@ -198,13 +200,12 @@ class _SurahPageState extends State<SurahPage> {
   }
 
   List<InlineSpan> _getNormalSpans(int number, bool isDark) {
-    final textColor = isDark ? Colors.white : Colors.black87;
+    final textColor = Colors.black87;
     final text = _quranService.getAyahText(widget.surahNumber, number);
     return [
       TextSpan(
         text: "$text ",
-        style: TextStyle(
-          fontFamily: 'IndoPakFont',
+        style: AppThemes.arabicTextStyle.copyWith(
           fontSize: 24,
           color: textColor,
           height: 1.8,
@@ -220,7 +221,7 @@ class _SurahPageState extends State<SurahPage> {
     List<InlineSpan> spans = [];
 
     // Base text color for uncolored words
-    final baseColor = isDark ? Colors.white : Colors.black;
+    final baseColor = Colors.black;
 
     for (var item in diffs) {
       final word = item['word'];
@@ -236,7 +237,7 @@ class _SurahPageState extends State<SurahPage> {
         color = const Color(0xFFB71C1C); // Lighter red
         weight = FontWeight.bold;
       } else if (status == 'missing') {
-        color = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+        color = Colors.grey.shade400;
         decoration = TextDecoration.lineThrough;
       } else if (status == 'extra') {
         color = Colors.orange.shade400;
@@ -245,8 +246,7 @@ class _SurahPageState extends State<SurahPage> {
       spans.add(
         TextSpan(
           text: "$word ",
-          style: TextStyle(
-            fontFamily: 'IndoPakFont',
+          style: AppThemes.arabicTextStyle.copyWith(
             fontSize: 24,
             color: color,
             fontWeight: weight,
@@ -265,7 +265,7 @@ class _SurahPageState extends State<SurahPage> {
 
   InlineSpan _buildAyahNumberSpan(int number, bool isDark) {
     // Light/Dark ring color
-    final ringColor = isDark ? Colors.white70 : Colors.black87; 
+    final ringColor = Colors.black87; 
     
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
@@ -275,12 +275,11 @@ class _SurahPageState extends State<SurahPage> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: ringColor, width: 1.5),
-          color: isDark ? Colors.grey.shade800 : Colors.white,
+          color: Colors.white,
         ),
         child: Text(
           "$number",
-          style: TextStyle(
-            fontFamily: 'IndoPakFont',
+          style: AppThemes.arabicTextStyle.copyWith(
             fontSize: 12, // Small for inside circle
             fontWeight: FontWeight.bold,
             color: ringColor,
@@ -295,15 +294,15 @@ class _SurahPageState extends State<SurahPage> {
     final lightOuterBorder = Colors.black;
     final lightInnerBg = const Color(0xFFF9F5EC);
     final lightText = Colors.black87;
-    // Dark Mode Colors
-    final darkOuterBorder = Colors.grey.shade600;
-    final darkInnerBg = const Color(0xFF2C2C2C);
-    final darkText = Colors.white;
+    // Dark Mode Colors - logic kept but always utilizing light vars below
+    // final darkOuterBorder = Colors.grey.shade600;
+    // final darkInnerBg = const Color(0xFF2C2C2C);
+    // final darkText = Colors.white;
 
-    final borderColor = isDark ? darkOuterBorder : lightOuterBorder;
-    final innerBgColor = isDark ? darkInnerBg : lightInnerBg;
-    final textColor = isDark ? darkText : lightText;
-    final starColor = isDark ? Colors.grey.shade400 : Colors.black;
+    final borderColor = lightOuterBorder;
+    final innerBgColor = lightInnerBg;
+    final textColor = lightText;
+    final starColor = Colors.black;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -328,8 +327,7 @@ class _SurahPageState extends State<SurahPage> {
                 child: Center(
                   child: Text(
                     "سُورَةُ ${widget.surahName}",
-                    style: TextStyle(
-                      fontFamily: 'IndoPakFont',
+                    style: AppThemes.arabicTextStyle.copyWith(
                       fontSize: 26,
                       color: textColor,
                       height: 1.3,

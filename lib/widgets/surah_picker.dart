@@ -130,9 +130,12 @@ class _SurahPickerState extends State<SurahPicker> {
                     ),
                     title: Text(
                       surahName,
-                      style: GoogleFonts.outfit(
+                      // style: GoogleFonts.outfit(
+                      style: TextStyle(
+                        fontFamily: 'IndoPakFont',
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                         color: isSelected ? const Color(0xFF1B4332) : Colors.black87,
+                        fontSize: 18,
                       ),
                     ),
                     subtitle: Text("$verseCount Verses"),

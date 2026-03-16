@@ -15,9 +15,8 @@ class QuranService {
 
     try {
       final String jsonString =
-          await rootBundle.loadString('assets/json/all_ayat.json');
-      final jsonResponse = jsonDecode(jsonString);
-      _quranData = jsonResponse['tafsir'];
+          await rootBundle.loadString('assets/json/quran.json');
+      _quranData = jsonDecode(jsonString);
     } catch (e) {
       print("❌ Error loading Quran JSON: $e");
     }
@@ -26,13 +25,26 @@ class QuranService {
   /// Get a specific Ayah text
   String getAyahText(int surahNumber, int ayahNumber) {
     if (_quranData == null) return "Loading...";
-    final key = "${surahNumber}_$ayahNumber";
-    return _quranData![key]?['text'] ?? "Ayah not found";
+    
+    try {
+      final surahKey = surahNumber.toString();
+      if (_quranData!.containsKey(surahKey)) {
+        final List<dynamic> surahAyahs = _quranData![surahKey];
+        // Ayah numbers are 1-based, list is 0-based
+        final index = ayahNumber - 1;
+        if (index >= 0 && index < surahAyahs.length) {
+          return surahAyahs[index]['text'] ?? "Ayah not found";
+        }
+      }
+    } catch (e) {
+      print("Error fetching ayah text: $e");
+    }
+    return "Ayah not found";
   }
 
   /// Verse counts based on your uploaded text file
   static const List<int> surahVerseCounts = [
-    7,
+    6,
     286,
     200,
     176,

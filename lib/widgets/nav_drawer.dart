@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:share_plus/share_plus.dart';
+
 import '../pages/profile_page.dart';
 import '../pages/progress_page.dart';
 import '../pages/auth_page.dart';
 import '../pages/settings_page.dart';
+import '../pages/faq_page.dart';
 
 class NavDrawer extends StatelessWidget {
   const NavDrawer({super.key});
@@ -43,6 +46,28 @@ class NavDrawer extends StatelessWidget {
                       context,
                       MaterialPageRoute(builder: (_) => const ProfilePage()),
                     ),
+                  ),
+                  const Divider(indent: 20, endIndent: 20),
+                  _buildCompactMenuItem(
+                    context,
+                    icon: Icons.help_outline_rounded,
+                    title: 'FAQ',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FAQPage()),
+                      );
+                    },
+                  ),
+                  _buildCompactMenuItem(
+                    context,
+                    icon: Icons.share_rounded,
+                    title: 'Share Saamay',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Share.share('Check out Saamay App for Quran recitation and analysis!');
+                    },
                   ),
                   const Divider(indent: 20, endIndent: 20),
                   _buildCompactMenuItem(

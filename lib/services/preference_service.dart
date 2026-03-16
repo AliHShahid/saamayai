@@ -29,6 +29,18 @@ class PreferenceService {
     };
   }
 
+  /// Save the last read Ayah for a specific Surah
+  Future<void> saveSurahScrollPosition(int surahNumber, int lastAyah) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('surah_${surahNumber}_last_ayah', lastAyah);
+  }
+
+  /// Get the last read Ayah for a specific Surah
+  Future<int> getSurahScrollPosition(int surahNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('surah_${surahNumber}_last_ayah') ?? 1;
+  }
+
   /// Save a transcription/recitation result to Supabase history
   Future<void> saveRecitationResult(int surah, String name, double accuracy) async {
     if (accuracy <= 0) return; // Don't save empty/useless attempts
