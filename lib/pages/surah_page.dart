@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme.dart';
 import '../services/quran_service.dart';
+import '../services/stt_service.dart';
 import '../widgets/recording_widget.dart';
 
 class SurahPage extends StatefulWidget {

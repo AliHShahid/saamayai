@@ -7,6 +7,7 @@ import 'pages/home_page.dart';
 import 'pages/update_password_page.dart';
 import 'package:provider/provider.dart';
 import 'services/stt_service.dart';
+import 'services/notification_service.dart';
 
 const supabaseUrl = 'https://advrtbxulkdblpxuflbk.supabase.co';
 const supabaseAnonKey =
@@ -60,6 +61,9 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _startWarmupSequence();
+    NotificationService().init().then((_) {
+      NotificationService().scheduleDailyReminder();
+    });
   }
 
   Future<void> _startWarmupSequence() async {
@@ -190,6 +194,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void initState() {
     super.initState();
     _startWarmupSequence();
+    NotificationService().init().then((_) {
+      NotificationService().scheduleDailyReminder();
+    });
   }
 
   Future<void> _startWarmupSequence() async {

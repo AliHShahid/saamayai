@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'home_page.dart';
 import '../widgets/full_screen_image_viewer.dart';
+import '../services/preference_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,6 +18,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? userProfile;
   String? _avatarUrl;
   bool _isLoading = true;
+  Set<String> _activeDates = {};
+  int _currentStreak = 0;
+  int _longestStreak = 0;
 
   @override
   void initState() {
@@ -36,11 +39,29 @@ class _ProfilePageState extends State<ProfilePage> {
         .eq('id', user.id)
         .maybeSingle();
 
+    final prefService = PreferenceService();
+    final streakStats = await prefService.getStreakStats();
+    final history = await prefService.getHistory();
+    final active = <String>{};
+    for (var item in history) {
+      if (item['date'] != null) {
+        try {
+          final parsed = DateTime.parse(item['date'].toString()).toLocal();
+          active.add('${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}');
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
     if (!mounted) return;
 
     setState(() {
       userProfile = response ?? {};
       _avatarUrl = userProfile?['avatar_url'];
+      _activeDates = active;
+      _currentStreak = streakStats['current'] ?? 0;
+      _longestStreak = streakStats['longest'] ?? 0;
       _isLoading = false;
     });
   }
@@ -147,11 +168,7 @@ class _ProfilePageState extends State<ProfilePage> {
         leading: IconButton(
           icon: const Icon(Icons.keyboard_double_arrow_left_outlined),
           onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const HomePage()),
-              (route) => false, // clear all previous routes
-            );
+            Navigator.pop(context);
           },
         ),
       ),
@@ -348,10 +365,88 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               subtitle: const Text("Date Joined"),
             ),
-            // const Divider(),
+            const SizedBox(height: 32),
+            _buildActivityGrid(),
+            const SizedBox(height: 32),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActivityGrid() {
+    // Generate the last 140 days (20 weeks)
+    final today = DateTime.now();
+    final days = List.generate(140, (i) => today.subtract(Duration(days: 139 - i)));
+    
+    List<Widget> columns = [];
+    for (int i = 0; i < 140; i += 7) {
+      List<Widget> columnCells = [];
+      for (int j = 0; j < 7; j++) {
+        if (i + j < 140) {
+          final date = days[i + j];
+          final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+          final isActive = _activeDates.contains(dateStr);
+          
+          columnCells.add(
+            Tooltip(
+              message: dateStr,
+              child: Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: isActive ? const Color(0xFFFFD54F) : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            )
+          );
+        }
+      }
+      columns.add(Column(children: columnCells));
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Recitation Activity",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Row(
+              children: [
+                Image.asset('assets/cap.png', width: 18, height: 18),
+                const SizedBox(width: 4),
+                Text(
+                  " $_currentStreak Day Streak",
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange),
+                ),
+              ],
+            )
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true, // Focuses right side (most recent)
+            child: Row(
+              children: columns,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -145,7 +145,7 @@ class _SignInFormState extends State<SignInForm> {
               TextFormField(
                 controller: _password,
                 obscureText: true,
-                autofillHints: const [AutofillHints.newPassword],
+                autofillHints: const [AutofillHints.password],
                 decoration: const InputDecoration(labelText: 'Password'),
                 // validator: (v) {
                 //   if (v == null || v.isEmpty) return 'Enter a password';
@@ -275,7 +275,7 @@ class _SignUpFormState extends State<SignUpForm> {
               TextFormField(
                 controller: _password,
                 obscureText: true,
-                autofillHints: const [AutofillHints.password],
+                autofillHints: const [AutofillHints.newPassword],
                 decoration: const InputDecoration(
                   labelText: 'Create a password',
                   helperText:

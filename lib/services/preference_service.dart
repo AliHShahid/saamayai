@@ -20,7 +20,7 @@ class PreferenceService {
     final prefs = await SharedPreferences.getInstance();
     final number = prefs.getInt(_keyLastSurahNumber) ?? 1;
     final name = prefs.getString(_keyLastSurahName) ?? 'Al-Fatiha';
-    final verses = prefs.getInt(_keyLastSurahVerses) ?? 7;
+    final verses = prefs.getInt(_keyLastSurahVerses) ?? 6;
 
     return {
       'number': number,
@@ -86,5 +86,72 @@ class PreferenceService {
       debugPrint("❌ Error fetching history from Supabase: $e");
       return [];
     }
+  }
+
+  /// Calculates the current and longest streaks based on active days
+  Future<Map<String, int>> getStreakStats() async {
+    final history = await getHistory();
+    if (history.isEmpty) return {'current': 0, 'longest': 0};
+
+    final activeDates = <String>{};
+    for (var item in history) {
+      if (item['date'] != null) {
+        try {
+          final parsed = DateTime.parse(item['date'].toString()).toLocal();
+          activeDates.add('${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}');
+        } catch (_) {}
+      }
+    }
+
+    if (activeDates.isEmpty) return {'current': 0, 'longest': 0};
+
+    // Calculate current streak
+    int currentStreak = 0;
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final yesterday = today.subtract(const Duration(days: 1));
+    final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+    DateTime checkDate = today;
+    if (!activeDates.contains(todayStr) && !activeDates.contains(yesterdayStr)) {
+      currentStreak = 0;
+    } else {
+      if (!activeDates.contains(todayStr)) {
+        checkDate = yesterday; // Streak continues from yesterday
+      }
+      while (true) {
+        final dateStr = '${checkDate.year}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}';
+        if (activeDates.contains(dateStr)) {
+          currentStreak++;
+          checkDate = checkDate.subtract(const Duration(days: 1));
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Calculate longest streak
+    int longest = 0;
+    int currentRun = 0;
+    // To do this simply over the available dates, we sort them
+    final sortedDates = activeDates.map((s) => DateTime.parse(s)).toList()..sort((a, b) => a.compareTo(b));
+    
+    if (sortedDates.isNotEmpty) {
+      currentRun = 1;
+      longest = 1;
+      for (int i = 1; i < sortedDates.length; i++) {
+        final diff = sortedDates[i].difference(sortedDates[i - 1]).inDays;
+        if (diff == 1) {
+          currentRun++;
+        } else if (diff > 1) {
+          currentRun = 1;
+        }
+        if (currentRun > longest) {
+          longest = currentRun;
+        }
+      }
+    }
+
+    return {'current': currentStreak, 'longest': longest};
   }
 }

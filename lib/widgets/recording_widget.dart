@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/socket_service.dart';
-import '../services/stt_service.dart';
 
 class RecordingWidget extends StatefulWidget {
   final int surahNumber;
