@@ -6,6 +6,7 @@ import '../pages/progress_page.dart';
 import '../pages/auth_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/faq_page.dart';
+import '../pages/community_page.dart';
 import '../services/preference_service.dart';
 
 class NavDrawer extends StatefulWidget {
@@ -114,7 +115,18 @@ class _NavDrawerState extends State<NavDrawer> {
                       );
                     },
                   ),
-
+                  _buildCompactMenuItem(
+                    context,
+                    icon: Icons.groups_rounded,
+                    title: 'Community',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CommunityPage()),
+                      );
+                    },
+                  ),
                   const Divider(indent: 20, endIndent: 20),
                   _buildCompactMenuItem(
                     context,
