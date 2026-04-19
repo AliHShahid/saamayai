@@ -248,8 +248,8 @@ class _HomePageState extends State<HomePage> {
                 
                 // Hoisted Recording Widget
                 Container(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  alignment: Alignment.center,
+                  padding: const EdgeInsets.only(bottom: 20, left: 24),
+                  alignment: Alignment.centerLeft,
                   child: RecordingWidget(
                     surahNumber: _currentSurahNumber,
                     onAnalysisComplete: (data) => _analysisController.add(data),

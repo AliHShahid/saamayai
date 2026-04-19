@@ -147,7 +147,7 @@ class _RecordingWidgetState extends State<RecordingWidget> with SingleTickerProv
             decoration: BoxDecoration(
               // borderRadius: BorderRadius.circular(0),
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: const Color(0xFF1E1E1E),
               // Shadow provides the "Glow"
               boxShadow: isActive
                   ? [
@@ -167,7 +167,7 @@ class _RecordingWidgetState extends State<RecordingWidget> with SingleTickerProv
                     ],
             ),
             child: Center(
-              child: _buildIconState(neonGreen),
+              child: _buildIconState(Colors.white),
             ),
           );
         },

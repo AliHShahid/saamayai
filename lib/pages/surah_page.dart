@@ -139,7 +139,7 @@ class _SurahPageState extends State<SurahPage> {
                   // Floating Recording Button
                   Positioned(
                     bottom: 24,
-                    right: 24,
+                    left: 24,
                     child: RecordingWidget(
                       surahNumber: widget.surahNumber,
                       onAnalysisComplete: _handleAnalysisComplete,
